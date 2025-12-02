@@ -87,7 +87,7 @@ export const JoinDrawer = ({ hike, isOpen, onClose }: JoinDrawerProps) => {
 
   return (
     <Drawer open={isOpen} onOpenChange={resetAndClose}>
-      <DrawerContent className="bg-card border-t border-border max-h-[90vh]">
+      <DrawerContent className="bg-card border-t border-border max-h-[85vh] pb-20 md:pb-0">
         <div className="mx-auto w-full max-w-lg">
           <DrawerHeader className="border-b border-border pb-4">
             <div className="flex items-center justify-between">
