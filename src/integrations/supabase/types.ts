@@ -14,7 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      hikes: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          difficulty: number
+          id: string
+          image_url: string | null
+          location: string
+          max_spots: number
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          difficulty: number
+          id?: string
+          image_url?: string | null
+          location: string
+          max_spots?: number
+          title: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          difficulty?: number
+          id?: string
+          image_url?: string | null
+          location?: string
+          max_spots?: number
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      registrations: {
+        Row: {
+          created_at: string
+          hike_id: string
+          id: string
+          is_driver: boolean
+          passenger_seats: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hike_id: string
+          id?: string
+          is_driver?: boolean
+          passenger_seats?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hike_id?: string
+          id?: string
+          is_driver?: boolean
+          passenger_seats?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registrations_hike_id_fkey"
+            columns: ["hike_id"]
+            isOneToOne: false
+            referencedRelation: "hikes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

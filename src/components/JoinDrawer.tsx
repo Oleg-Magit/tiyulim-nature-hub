@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { X, Car, User, Calendar, MapPin, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +14,11 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { DifficultyIndicator } from "./DifficultyIndicator";
-import { Hike, formatHebrewDate } from "@/data/mockHikes";
+import { Hike, formatHebrewDate } from "@/hooks/useHikes";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface JoinDrawerProps {
   hike: Hike | null;
@@ -23,60 +27,92 @@ interface JoinDrawerProps {
 }
 
 export const JoinDrawer = ({ hike, isOpen, onClose }: JoinDrawerProps) => {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [isDriver, setIsDriver] = useState(false);
   const [passengerSeats, setPassengerSeats] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || !phone) {
+    if (!user) {
       toast({
-        title: "שדות חסרים",
-        description: "נא למלא את כל השדות הנדרשים",
+        title: "נדרשת התחברות",
+        description: "יש להתחבר כדי להירשם לטיול",
         variant: "destructive",
       });
+      onClose();
+      navigate("/auth");
       return;
     }
 
+    if (!hike) return;
+
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setIsSubmitting(false);
-    setIsSuccess(true);
-
-    // Trigger confetti
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ["#E07A5F", "#2F4858", "#F6F4EF"],
-    });
-
-    setTimeout(() => {
-      setIsSuccess(false);
-      setName("");
-      setPhone("");
-      setIsDriver(false);
-      setPassengerSeats(1);
-      onClose();
-
-      toast({
-        title: "נרשמת בהצלחה! 🎉",
-        description: `נתראה בטיול ${hike?.title}`,
+    try {
+      const { error } = await supabase.from("registrations").insert({
+        user_id: user.id,
+        hike_id: hike.id,
+        is_driver: isDriver,
+        passenger_seats: isDriver ? passengerSeats : 0,
       });
-    }, 2000);
+
+      if (error) {
+        if (error.code === "23505") {
+          toast({
+            title: "כבר נרשמת",
+            description: "אתה כבר רשום לטיול זה",
+            variant: "destructive",
+          });
+        } else {
+          throw error;
+        }
+        setIsSubmitting(false);
+        return;
+      }
+
+      setIsSuccess(true);
+
+      // Trigger confetti
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#E07A5F", "#2F4858", "#F6F4EF"],
+      });
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["hikes"] });
+      queryClient.invalidateQueries({ queryKey: ["user-registrations"] });
+
+      setTimeout(() => {
+        setIsSuccess(false);
+        setIsDriver(false);
+        setPassengerSeats(1);
+        onClose();
+
+        toast({
+          title: "נרשמת בהצלחה! 🎉",
+          description: `נתראה בטיול ${hike.title}`,
+        });
+      }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "שגיאה",
+        description: "אירעה שגיאה בהרשמה, נסה שוב",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const resetAndClose = () => {
-    setName("");
-    setPhone("");
     setIsDriver(false);
     setPassengerSeats(1);
     setIsSuccess(false);
@@ -152,118 +188,115 @@ export const JoinDrawer = ({ hike, isOpen, onClose }: JoinDrawerProps) => {
                         {hike.location}
                       </div>
                     </div>
-                    <DifficultyIndicator difficulty={hike.difficulty} />
+                    <DifficultyIndicator difficulty={hike.difficulty as 1 | 2 | 3} />
                   </div>
 
-                  {/* Personal Details */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">שם מלא</Label>
-                      <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="הכנס את שמך"
-                        className="text-right"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">טלפון (WhatsApp)</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="050-1234567"
-                        className="text-right"
-                        dir="ltr"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Carpool Section */}
-                  <div className="bg-secondary/30 rounded-xl p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                          <Car className="w-5 h-5 text-accent" />
-                        </div>
-                        <div>
-                          <Label className="font-medium">אני מגיע עם רכב</Label>
-                          <p className="text-xs text-muted-foreground">
-                            עזרו לחברים להגיע
-                          </p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={isDriver}
-                        onCheckedChange={setIsDriver}
-                      />
-                    </div>
-
-                    <AnimatePresence>
-                      {isDriver ? (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="space-y-2 overflow-hidden"
-                        >
-                          <Label>כמה מקומות פנויים?</Label>
-                          <div className="flex gap-2">
-                            {[1, 2, 3, 4].map((num) => (
-                              <Button
-                                key={num}
-                                type="button"
-                                variant={
-                                  passengerSeats === num ? "accent" : "outline"
-                                }
-                                size="sm"
-                                className="flex-1"
-                                onClick={() => setPassengerSeats(num)}
-                              >
-                                {num}
-                              </Button>
-                            ))}
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden"
-                        >
-                          <User className="w-4 h-4" />
-                          <span>אשמח לטרמפ 🙏</span>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Submit */}
-                  <Button
-                    type="submit"
-                    variant="accent"
-                    size="lg"
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{
-                          repeat: Infinity,
-                          duration: 1,
-                          ease: "linear",
+                  {/* Auth notice */}
+                  {!user && (
+                    <div className="bg-accent/10 border border-accent/20 rounded-xl p-4 text-center">
+                      <p className="text-foreground text-sm mb-2">
+                        יש להתחבר כדי להירשם לטיול
+                      </p>
+                      <Button
+                        type="button"
+                        variant="accent"
+                        size="sm"
+                        onClick={() => {
+                          onClose();
+                          navigate("/auth");
                         }}
-                        className="w-5 h-5 border-2 border-accent-foreground/30 border-t-accent-foreground rounded-full"
-                      />
-                    ) : (
-                      "שריין מקום"
-                    )}
-                  </Button>
+                      >
+                        התחבר עכשיו
+                      </Button>
+                    </div>
+                  )}
+
+                  {user && (
+                    <>
+                      {/* Carpool Section */}
+                      <div className="bg-secondary/30 rounded-xl p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                              <Car className="w-5 h-5 text-accent" />
+                            </div>
+                            <div>
+                              <Label className="font-medium">אני מגיע עם רכב</Label>
+                              <p className="text-xs text-muted-foreground">
+                                עזרו לחברים להגיע
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={isDriver}
+                            onCheckedChange={setIsDriver}
+                          />
+                        </div>
+
+                        <AnimatePresence>
+                          {isDriver ? (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="space-y-2 overflow-hidden"
+                            >
+                              <Label>כמה מקומות פנויים?</Label>
+                              <div className="flex gap-2">
+                                {[1, 2, 3, 4].map((num) => (
+                                  <Button
+                                    key={num}
+                                    type="button"
+                                    variant={
+                                      passengerSeats === num ? "accent" : "outline"
+                                    }
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setPassengerSeats(num)}
+                                  >
+                                    {num}
+                                  </Button>
+                                ))}
+                              </div>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="flex items-center gap-2 text-sm text-muted-foreground overflow-hidden"
+                            >
+                              <User className="w-4 h-4" />
+                              <span>אשמח לטרמפ 🙏</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Submit */}
+                      <Button
+                        type="submit"
+                        variant="accent"
+                        size="lg"
+                        className="w-full"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1,
+                              ease: "linear",
+                            }}
+                            className="w-5 h-5 border-2 border-accent-foreground/30 border-t-accent-foreground rounded-full"
+                          />
+                        ) : (
+                          "שריין מקום"
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </motion.form>
               )}
             </AnimatePresence>

@@ -3,8 +3,19 @@ import { MapPin, Calendar, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DifficultyIndicator } from "./DifficultyIndicator";
-import { Hike, formatHebrewDate } from "@/data/mockHikes";
+import { Hike, formatHebrewDate } from "@/hooks/useHikes";
 import { cn } from "@/lib/utils";
+
+// Import local images
+import hikeDesert from "@/assets/hike-desert.jpg";
+import hikeForest from "@/assets/hike-forest.jpg";
+import hikeGalilee from "@/assets/hike-galilee.jpg";
+
+const imageMap: Record<string, string> = {
+  "/hike-desert.jpg": hikeDesert,
+  "/hike-forest.jpg": hikeForest,
+  "/hike-galilee.jpg": hikeGalilee,
+};
 
 interface HikeCardProps {
   hike: Hike;
@@ -13,8 +24,9 @@ interface HikeCardProps {
 }
 
 export const HikeCard = ({ hike, index, onJoin }: HikeCardProps) => {
-  const isFull = hike.currentSpots >= hike.maxSpots;
-  const spotsLeft = hike.maxSpots - hike.currentSpots;
+  const spotsLeft = hike.max_spots - hike.registrationCount;
+  const isFull = spotsLeft <= 0;
+  const imageUrl = imageMap[hike.image_url || ""] || hikeDesert;
 
   return (
     <motion.div
@@ -34,7 +46,7 @@ export const HikeCard = ({ hike, index, onJoin }: HikeCardProps) => {
         index === 0 ? "h-64 md:h-full md:min-h-[400px]" : "h-48"
       )}>
         <img
-          src={hike.image}
+          src={imageUrl}
           alt={hike.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -72,14 +84,14 @@ export const HikeCard = ({ hike, index, onJoin }: HikeCardProps) => {
           <span>{hike.location}</span>
         </div>
 
-        {index === 0 && (
+        {index === 0 && hike.description && (
           <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
             {hike.description}
           </p>
         )}
 
         <div className="flex items-center justify-between mb-4">
-          <DifficultyIndicator difficulty={hike.difficulty} />
+          <DifficultyIndicator difficulty={hike.difficulty as 1 | 2 | 3} />
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Users className="w-4 h-4" />
             <span>{spotsLeft > 0 ? `נשארו ${spotsLeft} מקומות` : "מלא"}</span>
