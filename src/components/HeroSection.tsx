@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
-import heroImage from "@/assets/hero-nature.jpg";
+import { Suspense } from "react";
+import { Forest3D } from "./Forest3D";
 
 interface HeroSectionProps {
   onCtaClick: () => void;
@@ -13,16 +14,13 @@ export const HeroSection = ({ onCtaClick }: HeroSectionProps) => {
   };
 
   return (
-    <section className="relative h-[85vh] md:h-[90vh] w-full overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0">
-        <img
-          src={heroImage}
-          alt="נוף טבע ישראלי"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-primary/40 to-primary/20" />
-      </div>
+    <section className="relative h-[85vh] md:h-[90vh] w-full overflow-hidden bg-primary">
+      {/* 3D Forest Background */}
+      <Suspense fallback={
+        <div className="absolute inset-0 bg-gradient-to-b from-primary to-primary-foreground/20" />
+      }>
+        <Forest3D />
+      </Suspense>
 
       {/* Content */}
       <div className="relative z-10 h-full flex flex-col items-center justify-center px-6 text-center">
